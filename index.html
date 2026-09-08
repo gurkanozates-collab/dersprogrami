@@ -158,6 +158,10 @@ th{color:#475467;background:#f9fafb;font-size:12px}
 
 </style>
 
+
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
+
 </head>
 <body>
 <div class="app">
@@ -183,7 +187,7 @@ th{color:#475467;background:#f9fafb;font-size:12px}
     <div class="topbar">
       <div>
         <div class="kicker">Yönetici Paneli</div>
-        <h1 id="pageTitle">Ana Sayfa</h1>
+        <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap"><h1 id="pageTitle">Ana Sayfa</h1><span id="firebaseStatus" style="font-size:11px;padding:5px 9px;border-radius:999px;background:#fff7ed;color:#9a3412;border:1px solid #fed7aa">Firebase bağlanıyor...</span></div>
       </div>
       <div class="badge">Yerel kayıt açık</div>
     </div>
@@ -457,7 +461,11 @@ if(!db.settings.dayHours){
   db.settings.dayHours={Pazartesi:oldDefault,Salı:oldDefault,Çarşamba:oldDefault,Perşembe:oldDefault,Cuma:oldDefault};
 }
 
-function save(){localStorage.setItem(key,JSON.stringify(db));renderAll()}
+function save(){
+  localStorage.setItem(key,JSON.stringify(db));
+  renderAll();
+  saveToFirebase();
+}
 
 function resetDemoData(){
   localStorage.removeItem(key);
@@ -896,7 +904,105 @@ window.addEventListener("afterprint",()=>{
   document.body.classList.remove("pdf-mode");
 });
 
+
+const firebaseConfig = {
+  apiKey: "AIzaSyDGjazqhees5L97xhk03W6PIGL1FZbhwo0",
+  authDomain: "dersprogrami-1eeed.firebaseapp.com",
+  projectId: "dersprogrami-1eeed",
+  storageBucket: "dersprogrami-1eeed.firebasestorage.app",
+  messagingSenderId: "342622187228",
+  appId: "1:342622187228:web:afdd37d51cb44cdadc4e19"
+};
+
+let firestoreDb=null;
+let firebaseReady=false;
+let firebaseLoading=true;
+
+function setFirebaseStatus(text,ok=false,error=false){
+  const el=document.getElementById("firebaseStatus");
+  if(!el)return;
+  el.textContent=text;
+  if(ok){
+    el.style.background="#ecfdf3";
+    el.style.color="#067647";
+    el.style.borderColor="#abefc6";
+  }else if(error){
+    el.style.background="#fef3f2";
+    el.style.color="#b42318";
+    el.style.borderColor="#fecdca";
+  }else{
+    el.style.background="#fff7ed";
+    el.style.color="#9a3412";
+    el.style.borderColor="#fed7aa";
+  }
+}
+
+async function initFirebase(){
+  try{
+    if(typeof firebase==="undefined"){
+      throw new Error("Firebase SDK yüklenemedi");
+    }
+    if(!firebase.apps.length) firebase.initializeApp(firebaseConfig);
+    firestoreDb=firebase.firestore();
+
+    setFirebaseStatus("Firebase bağlanıyor...");
+    const ref=firestoreDb.collection("dersProgrami").doc("anaVeri");
+    const snap=await ref.get();
+
+    if(snap.exists){
+      const remote=snap.data();
+      if(remote && remote.db){
+        db=remote.db;
+        // migration guards
+        if(!db.settings) db.settings={};
+        if(!db.preferences) db.preferences=[];
+        if(!db.schedule) db.schedule=[];
+        if(!db.unavailable) db.unavailable=[];
+        if(!db.assignments) db.assignments=[];
+        if(!db.teachers) db.teachers=[];
+        if(!db.classes) db.classes=[];
+        if(!db.courses) db.courses=[];
+        if(!db.settings.dayHours){
+          db.settings.dayHours={Pazartesi:8,Salı:8,Çarşamba:8,Perşembe:8,Cuma:8};
+        }
+        db.courses.forEach(c=>{if(!c.weeklyHours)c.weeklyHours=2});
+        localStorage.setItem(key,JSON.stringify(db));
+        renderAll();
+      }
+    }else{
+      await ref.set({
+        db:db,
+        updatedAt:firebase.firestore.FieldValue.serverTimestamp()
+      });
+    }
+
+    firebaseReady=true;
+    firebaseLoading=false;
+    setFirebaseStatus("Firebase bağlı",true);
+  }catch(err){
+    console.error("Firebase bağlantı hatası:",err);
+    firebaseReady=false;
+    firebaseLoading=false;
+    setFirebaseStatus("Firebase bağlantı hatası",false,true);
+  }
+}
+
+async function saveToFirebase(){
+  if(!firestoreDb || !firebaseReady) return;
+  try{
+    await firestoreDb.collection("dersProgrami").doc("anaVeri").set({
+      db:db,
+      updatedAt:firebase.firestore.FieldValue.serverTimestamp()
+    });
+    setFirebaseStatus("Firebase kaydedildi",true);
+  }catch(err){
+    console.error("Firebase kayıt hatası:",err);
+    setFirebaseStatus("Firebase kayıt hatası",false,true);
+  }
+}
+
 renderAll();
+initFirebase();
 </script>
 
 <div id="editModal" class="modal-backdrop" onclick="if(event.target===this)closeEditModal()">
