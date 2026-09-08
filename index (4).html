@@ -1,0 +1,914 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Ders Programı Otomasyonu</title>
+<style>
+:root{
+  --bg:#f5f7fb; --card:#fff; --text:#172033; --muted:#667085;
+  --primary:#2563eb; --primary2:#1d4ed8; --danger:#dc2626; --line:#e5e7eb;
+  --success:#16a34a; --warning:#d97706;
+}
+*{box-sizing:border-box}
+body{margin:0;font-family:Inter,Arial,sans-serif;background:var(--bg);color:var(--text)}
+button,input,select{font:inherit}
+.app{display:flex;min-height:100vh}
+.sidebar{
+  width:250px;background:#111827;color:#fff;padding:22px 16px;position:fixed;inset:0 auto 0 0;
+  overflow:auto
+}
+.brand{font-size:21px;font-weight:800;padding:8px 10px 22px}
+.brand small{display:block;color:#9ca3af;font-size:11px;margin-top:5px;font-weight:500}
+.nav button{
+  width:100%;text-align:left;background:transparent;border:0;color:#d1d5db;padding:12px 13px;
+  border-radius:10px;margin:3px 0;cursor:pointer
+}
+.nav button:hover,.nav button.active{background:#1f2937;color:#fff}
+.main{margin-left:250px;width:calc(100% - 250px);padding:26px}
+.topbar{display:flex;justify-content:space-between;align-items:center;margin-bottom:22px;gap:15px}
+.topbar h1{margin:0;font-size:26px}
+.badge{background:#dbeafe;color:#1d4ed8;padding:7px 10px;border-radius:999px;font-size:12px;font-weight:700}
+.grid{display:grid;grid-template-columns:repeat(4,1fr);gap:16px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:18px;box-shadow:0 4px 16px rgba(16,24,40,.04)}
+.stat b{font-size:29px;display:block;margin-top:8px}
+.stat span{color:var(--muted);font-size:13px}
+.section{display:none}
+.section.active{display:block}
+.section-title{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:16px}
+.section-title h2{margin:0;font-size:21px}
+.btn{border:0;border-radius:10px;padding:10px 14px;cursor:pointer;font-weight:700}
+.btn-primary{background:var(--primary);color:#fff}
+.btn-primary:hover{background:var(--primary2)}
+.btn-danger{background:#fee2e2;color:#b91c1c}
+.btn-secondary{background:#eef2ff;color:#3730a3}
+.btn-success{background:#dcfce7;color:#166534}
+.form-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
+.field label{display:block;font-size:12px;color:var(--muted);margin-bottom:6px;font-weight:700}
+.field input,.field select{
+  width:100%;padding:10px 11px;border:1px solid #d0d5dd;border-radius:9px;background:#fff
+}
+.table-wrap{overflow:auto}
+table{width:100%;border-collapse:collapse}
+th,td{padding:11px 10px;border-bottom:1px solid var(--line);text-align:left;font-size:13px;white-space:nowrap}
+th{color:#475467;background:#f9fafb;font-size:12px}
+.empty{padding:35px;text-align:center;color:var(--muted)}
+.notice{padding:12px 14px;background:#fffbeb;border:1px solid #fde68a;border-radius:11px;color:#92400e;font-size:13px}
+.program-table th,.program-table td{text-align:center;min-width:125px;vertical-align:top}
+.program-table td{height:74px}
+.lesson{
+  display:block;background:#eff6ff;color:#1e40af;border:1px solid #bfdbfe;border-radius:8px;
+  padding:8px;font-size:12px;line-height:1.35
+}
+.lesson small{display:block;color:#64748b;margin-top:3px}
+.actions{display:flex;gap:6px}
+.kicker{font-size:12px;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:.04em}
+.quick{display:grid;grid-template-columns:1.3fr 1fr;gap:16px;margin-top:16px}
+.hero{padding:24px;background:linear-gradient(135deg,#1d4ed8,#3b82f6);color:#fff;border-radius:18px}
+.hero h2{margin:0 0 9px;font-size:25px}.hero p{margin:0;color:#dbeafe;max-width:720px}
+.modal-backdrop{position:fixed;inset:0;background:rgba(15,23,42,.55);display:none;align-items:center;justify-content:center;padding:18px;z-index:9999}
+.modal-backdrop.show{display:flex}
+.modal{background:#fff;width:100%;max-width:480px;border-radius:18px;padding:20px;box-shadow:0 20px 60px rgba(0,0,0,.25)}
+.modal h3{margin:0 0 16px}
+.modal-actions{display:flex;justify-content:flex-end;gap:8px;margin-top:16px}
+@media(max-width:1100px){.grid,.form-grid{grid-template-columns:repeat(2,1fr)}}
+@media(max-width:760px){
+ .sidebar{position:static;width:100%}.app{display:block}.main{margin-left:0;width:100%;padding:16px}
+ .grid,.form-grid,.quick{grid-template-columns:1fr}.topbar{align-items:flex-start;flex-direction:column}
+}
+
+@media print{
+  body{background:#fff !important}
+  .sidebar,.topbar,.section-title,.btn,.nav{display:none !important}
+  main,.content,.section,.card{display:block !important;width:100% !important;max-width:none !important;margin:0 !important;padding:0 !important;box-shadow:none !important;border:none !important}
+  #programs{display:block !important}
+  #programArea{display:block !important}
+  #programArea>div{break-inside:avoid;page-break-inside:avoid;margin:0 0 18mm 0 !important}
+  .table-wrap{overflow:visible !important}
+  .program-table{width:100% !important;border-collapse:collapse !important;font-size:10px !important}
+  .program-table th,.program-table td{border:1px solid #777 !important;padding:6px !important}
+  .lesson{font-size:10px !important}
+  .lesson small{font-size:8px !important}
+  @page{size:A4 landscape;margin:10mm}
+}
+
+
+@media print{
+  @page{size:A4 landscape;margin:8mm}
+  body.pdf-mode *{visibility:hidden !important}
+  body.pdf-mode #programs,
+  body.pdf-mode #programs *{visibility:visible !important}
+  body.pdf-mode #programs{
+    position:absolute !important;
+    left:0 !important;
+    top:0 !important;
+    width:100% !important;
+    display:block !important;
+    background:#fff !important;
+  }
+  body.pdf-mode #programs .section-title,
+  body.pdf-mode #programs button,
+  body.pdf-mode #programs .btn,
+  body.pdf-mode #programs span[style*="font-size:12px"]{
+    display:none !important;
+  }
+  body.pdf-mode #programs .card{
+    border:0 !important;
+    box-shadow:none !important;
+    padding:0 !important;
+    margin:0 !important;
+  }
+  body.pdf-mode #programArea>div{
+    break-after:page !important;
+    page-break-after:always !important;
+    break-inside:avoid !important;
+    page-break-inside:avoid !important;
+    margin:0 !important;
+    padding:0 !important;
+  }
+  body.pdf-mode #programArea>div:last-child{
+    break-after:auto !important;
+    page-break-after:auto !important;
+  }
+  body.pdf-mode .table-wrap{overflow:visible !important}
+  body.pdf-mode table{
+    width:100% !important;
+    border-collapse:collapse !important;
+    table-layout:fixed !important;
+  }
+  body.pdf-mode th,
+  body.pdf-mode td{
+    border:1px solid #555 !important;
+    padding:5px !important;
+    background:#fff !important;
+    color:#000 !important;
+    font-size:9px !important;
+  }
+  body.pdf-mode .lesson{
+    background:#fff !important;
+    color:#000 !important;
+    border:0 !important;
+    padding:0 !important;
+  }
+  body.pdf-mode .lesson small{
+    color:#333 !important;
+    font-size:8px !important;
+  }
+}
+
+</style>
+
+</head>
+<body>
+<div class="app">
+  <aside class="sidebar">
+    <div class="brand">Ders Programı
+      <small>Otomasyon Yönetim Paneli</small>
+    </div>
+    <div class="nav">
+      <button class="active" data-section="dashboard">Ana Sayfa</button>
+      <button data-section="teachers">Öğretmenler</button>
+      <button data-section="classes">Sınıflar</button>
+      <button data-section="courses">Dersler</button>
+      <button data-section="assignments">Ders Dağılımı</button>
+      <button data-section="availability">Öğretmen Müsaitliği</button>
+      <button data-section="preferences">Öğretmen İstekleri</button>
+      <button data-section="generator">Otomatik Program</button>
+      <button data-section="programs">Programlar</button>
+      <button data-section="settings">Ayarlar</button>
+    </div>
+  </aside>
+
+  <main class="main">
+    <div class="topbar">
+      <div>
+        <div class="kicker">Yönetici Paneli</div>
+        <h1 id="pageTitle">Ana Sayfa</h1>
+      </div>
+      <div class="badge">Yerel kayıt açık</div>
+    </div>
+
+    <section id="dashboard" class="section active">
+      <div class="hero">
+        <h2>Ders programını otomatik oluştur</h2>
+        <p>Öğretmen, sınıf, ders ve haftalık ders saatlerini tanımla. Sistem çakışmaları önleyerek otomatik program üretir.</p>
+      </div>
+      <div class="grid" style="margin-top:16px">
+        <div class="card stat"><span>Öğretmen</span><b id="stTeachers">0</b></div>
+        <div class="card stat"><span>Sınıf</span><b id="stClasses">0</b></div>
+        <div class="card stat"><span>Ders</span><b id="stCourses">0</b></div>
+        <div class="card stat"><span>Ders Dağılımı</span><b id="stAssignments">0</b></div>
+      </div>
+      <div style="margin-top:14px">
+        <button class="btn btn-secondary" onclick="resetDemoData()">Örnek Verileri Yeniden Yükle</button>
+      </div>
+      <div class="quick">
+        <div class="card">
+          <h3>Başlangıç sırası</h3>
+          <p style="color:var(--muted);line-height:1.7">
+            1. Öğretmenleri ekle → 2. Sınıfları ekle → 3. Dersleri ekle →
+            4. Hangi öğretmenin hangi sınıfa kaç saat ders verdiğini tanımla →
+            5. Otomatik programı oluştur.
+          </p>
+        </div>
+        <div class="card">
+          <h3>İlk sürüm</h3>
+          <div class="notice">Veriler bu tarayıcıda saklanır. Daha sonra Firebase ve kullanıcı giriş sistemi bağlayabiliriz.</div>
+        </div>
+      </div>
+    </section>
+
+    <section id="teachers" class="section">
+      <div class="section-title"><h2>Öğretmenler</h2></div>
+      <div class="card">
+        <div class="form-grid">
+          <div class="field"><label>Ad Soyad</label><input id="teacherName" placeholder="Örn. Ahmet Yılmaz"></div>
+          <div class="field"><label>Branş</label><input id="teacherBranch" placeholder="Örn. Matematik"></div>
+          <div class="field"><label>Günlük Maks. Ders</label><input id="teacherMax" type="number" min="1" max="10" value="8"></div>
+          <div class="field" style="display:flex;align-items:end"><button class="btn btn-primary" onclick="addTeacher()">Öğretmen Ekle</button></div>
+        </div>
+      </div>
+      <div class="card" style="margin-top:16px"><div id="teachersTable"></div></div>
+    </section>
+
+    <section id="classes" class="section">
+      <div class="section-title"><h2>Sınıflar</h2></div>
+      <div class="card">
+        <div class="form-grid">
+          <div class="field"><label>Sınıf / Şube</label><input id="className" placeholder="Örn. 5/A"></div>
+          <div class="field"><label>Sınıf Seviyesi</label><input id="classLevel" placeholder="Örn. 5"></div>
+          <div class="field"><label>Günlük Ders Saati</label><input id="classDailyHours" type="number" min="1" max="10" value="8"></div>
+          <div class="field" style="display:flex;align-items:end"><button class="btn btn-primary" onclick="addClass()">Sınıf Ekle</button></div>
+        </div>
+      </div>
+      <div class="card" style="margin-top:16px"><div id="classesTable"></div></div>
+    </section>
+
+    <section id="courses" class="section">
+      <div class="section-title"><h2>Dersler</h2></div>
+      <div class="card">
+        <div class="form-grid">
+          <div class="field"><label>Ders Adı</label><input id="courseName" placeholder="Örn. Matematik"></div>
+          <div class="field"><label>Kısaltma</label><input id="courseCode" placeholder="Örn. MAT"></div>
+          <div class="field"><label>Varsayılan Haftalık Ders Saati</label><input id="courseWeeklyHours" type="number" min="1" max="40" value="2"></div>
+          <div class="field"><label>Blok Ders</label>
+            <select id="courseBlock"><option value="1">Tek saat</option><option value="2">2 saat blok</option></select>
+          </div>
+          <div class="field" style="display:flex;align-items:end"><button class="btn btn-primary" onclick="addCourse()">Ders Ekle</button></div>
+        </div>
+      </div>
+      <div class="card" style="margin-top:16px"><div id="coursesTable"></div></div>
+    </section>
+
+    <section id="assignments" class="section">
+      <div class="section-title"><h2>Ders Dağılımı</h2></div>
+      <div class="card">
+        <div class="form-grid">
+          <div class="field"><label>Öğretmen</label><select id="asTeacher"></select></div>
+          <div class="field"><label>Sınıf</label><select id="asClass"></select></div>
+          <div class="field"><label>Ders</label><select id="asCourse"></select></div>
+          <div class="field"><label>Haftalık Saat</label><input id="asHours" type="number" min="1" max="40" value="4"></div>
+        </div>
+        <div style="margin-top:12px"><button class="btn btn-primary" onclick="addAssignment()">Dağılım Ekle</button></div>
+      </div>
+      <div class="card" style="margin-top:16px"><div id="assignmentsTable"></div></div>
+    </section>
+
+    <section id="availability" class="section">
+      <div class="section-title"><h2>Öğretmen Müsaitliği</h2></div>
+      <div class="card">
+        <div class="notice">İlk sürümde öğretmenin tamamen uygun olmadığı günleri seçebilirsin. Sonraki sürümde saat bazlı seçim ekleyebiliriz.</div>
+        <div class="form-grid" style="margin-top:14px">
+          <div class="field"><label>Öğretmen</label><select id="avTeacher"></select></div>
+          <div class="field"><label>Uygun Olmadığı Gün</label>
+            <select id="avDay">
+              <option>Pazartesi</option><option>Salı</option><option>Çarşamba</option><option>Perşembe</option><option>Cuma</option>
+            </select>
+          </div>
+          <div class="field" style="display:flex;align-items:end"><button class="btn btn-primary" onclick="addUnavailable()">Günü Ekle</button></div>
+        </div>
+      </div>
+      <div class="card" style="margin-top:16px"><div id="availabilityTable"></div></div>
+    </section>
+
+
+    <section id="preferences" class="section">
+      <div class="section-title"><h2>Öğretmen İstekleri</h2></div>
+      <div class="card">
+        <div class="notice">
+          Kesin kurallar asla ihlal edilmez. Tercihler ise mümkün olduğunca uygulanır.
+        </div>
+        <div class="form-grid" style="margin-top:14px">
+          <div class="field">
+            <label>Öğretmen</label>
+            <select id="prefTeacher"></select>
+          </div>
+          <div class="field">
+            <label>İstek Türü</label>
+            <select id="prefType" onchange="updatePreferenceFields()">
+              <option value="day_off">Belirli gün tamamen boş</option>
+              <option value="no_first">İlk derse yazma</option>
+              <option value="no_last_n">Son X saate yazma</option>
+              <option value="morning">Dersler mümkün olduğunca sabah</option>
+              <option value="afternoon">Dersler mümkün olduğunca öğleden sonra</option>
+              <option value="compact">Derslerimi mümkün olduğunca arka arkaya ver</option>
+              <option value="no_compact">Derslerimi mümkün olduğunca arka arkaya verme</option>
+              <option value="max_daily">Günlük en fazla X ders</option>
+              <option value="day_until">Belirli gün yalnızca X. derse kadar</option>
+              <option value="day_after">Belirli gün X. dersten sonra ders yazma</option>
+            </select>
+          </div>
+          <div class="field" id="prefDayWrap">
+            <label>Gün</label>
+            <select id="prefDay">
+              <option>Pazartesi</option><option>Salı</option><option>Çarşamba</option><option>Perşembe</option><option>Cuma</option>
+            </select>
+          </div>
+          <div class="field" id="prefValueWrap">
+            <label id="prefValueLabel">Değer</label>
+            <input id="prefValue" type="number" min="1" max="12" value="2">
+          </div>
+        </div>
+        <div class="form-grid" style="margin-top:12px">
+          <div class="field">
+            <label>Kural Seviyesi</label>
+            <select id="prefLevel">
+              <option value="hard">Kesin Kural</option>
+              <option value="soft">Tercih</option>
+            </select>
+          </div>
+          <div class="field" style="display:flex;align-items:end">
+            <button class="btn btn-primary" onclick="addPreference()">İstek Ekle</button>
+          </div>
+        </div>
+      </div>
+      <div class="card" style="margin-top:16px"><div id="preferencesTable"></div></div>
+    </section>
+
+    <section id="generator" class="section">
+      <div class="section-title"><h2>Otomatik Program</h2></div>
+      <div class="card">
+        <p style="color:var(--muted);line-height:1.6">Sistem öğretmen ve sınıf çakışmalarını kontrol ederek dersleri haftaya dağıtır.</p>
+        <button class="btn btn-success" onclick="generateSchedule()">Otomatik Ders Programı Oluştur</button>
+        <button class="btn btn-secondary" onclick="clearSchedule()">Programı Temizle</button>
+        <div id="generatorMessage" style="margin-top:14px"></div>
+      </div>
+    </section>
+
+    <section id="programs" class="section">
+      <div class="section-title"><h2>Programlar</h2></div>
+      <div class="card">
+        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:18px">
+          <button id="classProgramsTab" class="btn btn-primary" onclick="setProgramView('classes')">Sınıf Programları</button>
+          <button id="teacherProgramsTab" class="btn btn-secondary" onclick="setProgramView('teachers')">Öğretmen Programları</button>
+          <button class="btn btn-secondary" onclick="saveProgramsAsPDF()">PDF Olarak Kaydet</button>
+        </div>
+        <div style="font-size:12px;color:var(--muted);margin-bottom:12px">
+          PDF Olarak Kaydet'e basınca Chrome yazdırma ekranı açılır. Hedef kısmından <b>PDF olarak kaydet</b> seç.
+        </div>
+        <div id="programArea"></div>
+    </section>
+
+    <section id="settings" class="section">
+      <div class="section-title"><h2>Ayarlar</h2></div>
+      <div class="card">
+        <div class="form-grid">
+          <div class="field"><label>Okul Adı</label><input id="schoolName" placeholder="Okul adı"></div>
+          <div class="field"><label>Pazartesi Ders Saati</label><input id="dayHoursPazartesi" type="number" min="0" max="12" value="8"></div>
+          <div class="field"><label>Salı Ders Saati</label><input id="dayHoursSalı" type="number" min="0" max="12" value="8"></div>
+          <div class="field"><label>Çarşamba Ders Saati</label><input id="dayHoursÇarşamba" type="number" min="0" max="12" value="8"></div>
+          <div class="field"><label>Perşembe Ders Saati</label><input id="dayHoursPerşembe" type="number" min="0" max="12" value="8"></div>
+          <div class="field"><label>Cuma Ders Saati</label><input id="dayHoursCuma" type="number" min="0" max="12" value="8"></div>
+          <div class="field" style="display:flex;align-items:end"><button class="btn btn-primary" onclick="saveSettings()">Kaydet</button></div>
+        </div>
+        <div class="notice" style="margin-top:14px">Bir güne 0 yazarsan o gün okul kapalı kabul edilir ve otomatik program o güne ders yerleştirmez.</div>
+      </div>
+    </section>
+  </main>
+</div>
+
+<script>
+const days=["Pazartesi","Salı","Çarşamba","Perşembe","Cuma"];
+const key="dersProgramiData_DEMO_v1";
+let db=JSON.parse(localStorage.getItem(key)||'null')||{
+  teachers:[
+    {id:"t1",name:"Ahmet Yılmaz",branch:"Matematik",max:6},
+    {id:"t2",name:"Ayşe Demir",branch:"Türkçe",max:6},
+    {id:"t3",name:"Mehmet Kaya",branch:"Fen Bilimleri",max:6},
+    {id:"t4",name:"Elif Şahin",branch:"İngilizce",max:6},
+    {id:"t5",name:"Murat Çelik",branch:"Sosyal Bilgiler",max:6},
+    {id:"t6",name:"Zeynep Arslan",branch:"Beden Eğitimi",max:5}
+  ],
+  classes:[
+    {id:"c1",name:"5/A",level:"5",daily:7},
+    {id:"c2",name:"5/B",level:"5",daily:7},
+    {id:"c3",name:"6/A",level:"6",daily:7}
+  ],
+  courses:[
+    {id:"d1",name:"Matematik",code:"MAT",weeklyHours:6,block:1},
+    {id:"d2",name:"Türkçe",code:"TRK",weeklyHours:6,block:1},
+    {id:"d3",name:"Fen Bilimleri",code:"FEN",weeklyHours:4,block:1},
+    {id:"d4",name:"İngilizce",code:"ING",weeklyHours:4,block:1},
+    {id:"d5",name:"Sosyal Bilgiler",code:"SOS",weeklyHours:3,block:1},
+    {id:"d6",name:"Beden Eğitimi",code:"BED",weeklyHours:2,block:2}
+  ],
+  assignments:[
+    {id:"a1",teacherId:"t1",classId:"c1",courseId:"d1",hours:6},
+    {id:"a2",teacherId:"t2",classId:"c1",courseId:"d2",hours:6},
+    {id:"a3",teacherId:"t3",classId:"c1",courseId:"d3",hours:4},
+    {id:"a4",teacherId:"t4",classId:"c1",courseId:"d4",hours:4},
+    {id:"a5",teacherId:"t5",classId:"c1",courseId:"d5",hours:3},
+    {id:"a6",teacherId:"t6",classId:"c1",courseId:"d6",hours:2},
+    {id:"a7",teacherId:"t1",classId:"c2",courseId:"d1",hours:6},
+    {id:"a8",teacherId:"t2",classId:"c2",courseId:"d2",hours:6},
+    {id:"a9",teacherId:"t3",classId:"c2",courseId:"d3",hours:4},
+    {id:"a10",teacherId:"t4",classId:"c2",courseId:"d4",hours:4},
+    {id:"a11",teacherId:"t5",classId:"c2",courseId:"d5",hours:3},
+    {id:"a12",teacherId:"t6",classId:"c2",courseId:"d6",hours:2},
+    {id:"a13",teacherId:"t1",classId:"c3",courseId:"d1",hours:5},
+    {id:"a14",teacherId:"t2",classId:"c3",courseId:"d2",hours:5},
+    {id:"a15",teacherId:"t3",classId:"c3",courseId:"d3",hours:4},
+    {id:"a16",teacherId:"t4",classId:"c3",courseId:"d4",hours:4},
+    {id:"a17",teacherId:"t5",classId:"c3",courseId:"d5",hours:3},
+    {id:"a18",teacherId:"t6",classId:"c3",courseId:"d6",hours:2}
+  ],
+  unavailable:[
+    {id:"u1",teacherId:"t3",day:"Çarşamba"}
+  ],
+  preferences:[
+    {id:"p1",teacherId:"t1",type:"morning",day:null,value:null,level:"soft"},
+    {id:"p2",teacherId:"t2",type:"no_last_n",day:null,value:2,level:"soft"},
+    {id:"p3",teacherId:"t3",type:"day_off",day:"Çarşamba",value:null,level:"hard"},
+    {id:"p4",teacherId:"t4",type:"compact",day:null,value:null,level:"soft"},
+    {id:"p5",teacherId:"t5",type:"no_compact",day:null,value:null,level:"soft"},
+    {id:"p6",teacherId:"t6",type:"afternoon",day:null,value:null,level:"soft"}
+  ],
+  schedule:[],
+  settings:{
+    schoolName:"Örnek Ortaokulu",
+    dayHours:{Pazartesi:7,Salı:7,Çarşamba:7,Perşembe:7,Cuma:7}
+  }
+};
+if(!db.settings) db.settings={};
+if(!db.preferences) db.preferences=[];
+db.courses.forEach(c=>{if(!c.weeklyHours)c.weeklyHours=2});
+if(!db.settings.dayHours){
+  const oldDefault=+db.settings.defaultDaily||8;
+  db.settings.dayHours={Pazartesi:oldDefault,Salı:oldDefault,Çarşamba:oldDefault,Perşembe:oldDefault,Cuma:oldDefault};
+}
+
+function save(){localStorage.setItem(key,JSON.stringify(db));renderAll()}
+
+function resetDemoData(){
+  localStorage.removeItem(key);
+  location.reload();
+}
+
+function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,7)}
+function esc(s){return String(s??"").replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"}[m]))}
+
+document.querySelectorAll(".nav button").forEach(b=>b.onclick=()=>{
+  document.querySelectorAll(".nav button").forEach(x=>x.classList.remove("active"));
+  b.classList.add("active");
+  document.querySelectorAll(".section").forEach(x=>x.classList.remove("active"));
+  document.getElementById(b.dataset.section).classList.add("active");
+  document.getElementById("pageTitle").textContent=b.textContent;
+  if(b.dataset.section==="programs") renderPrograms();
+});
+
+function addTeacher(){
+  const name=teacherName.value.trim(), branch=teacherBranch.value.trim(), max=+teacherMax.value||8;
+  if(!name)return alert("Öğretmen adı gir.");
+  db.teachers.push({id:uid(),name,branch,max});
+  teacherName.value="";teacherBranch.value="";save();
+}
+function addClass(){
+  const name=className.value.trim(),level=classLevel.value.trim(),daily=+classDailyHours.value||8;
+  if(!name)return alert("Sınıf adı gir.");
+  db.classes.push({id:uid(),name,level,daily});
+  className.value="";classLevel.value="";save();
+}
+function addCourse(){
+  const name=courseName.value.trim(),code=courseCode.value.trim(),weeklyHours=Math.max(1,+courseWeeklyHours.value||1),block=+courseBlock.value||1;
+  if(!name)return alert("Ders adı gir.");
+  db.courses.push({id:uid(),name,code,weeklyHours,block});
+  courseName.value="";courseCode.value="";courseWeeklyHours.value=2;save();
+}
+function addAssignment(){
+  if(!asTeacher.value||!asClass.value||!asCourse.value)return alert("Öğretmen, sınıf ve ders seç.");
+  const hours=+asHours.value||1;
+  db.assignments.push({id:uid(),teacherId:asTeacher.value,classId:asClass.value,courseId:asCourse.value,hours});
+  save();
+}
+function addUnavailable(){
+  if(!avTeacher.value)return alert("Öğretmen seç.");
+  if(db.unavailable.some(x=>x.teacherId===avTeacher.value&&x.day===avDay.value))return;
+  db.unavailable.push({id:uid(),teacherId:avTeacher.value,day:avDay.value});save();
+}
+function del(type,id){
+  db[type]=db[type].filter(x=>x.id!==id);
+  if(type==="teachers"){
+    db.assignments=db.assignments.filter(x=>x.teacherId!==id);
+    db.unavailable=db.unavailable.filter(x=>x.teacherId!==id);
+    db.preferences=db.preferences.filter(x=>x.teacherId!==id);
+  }
+  if(type==="classes") db.assignments=db.assignments.filter(x=>x.classId!==id);
+  if(type==="courses") db.assignments=db.assignments.filter(x=>x.courseId!==id);
+  save();
+}
+
+function opts(items,label){
+  return '<option value="">Seçiniz</option>'+items.map(x=>`<option value="${x.id}">${esc(x.name||x[label])}</option>`).join("");
+}
+
+function updatePreferenceFields(){
+  const t=prefType.value;
+  const needsDay=["day_off","day_until","day_after"].includes(t);
+  const needsValue=["no_last_n","max_daily","day_until","day_after"].includes(t);
+  prefDayWrap.style.display=needsDay?"block":"none";
+  prefValueWrap.style.display=needsValue?"block":"none";
+  if(t==="no_last_n") prefValueLabel.textContent="Son kaç saat?";
+  else if(t==="max_daily") prefValueLabel.textContent="Günlük en fazla kaç ders?";
+  else if(t==="day_until") prefValueLabel.textContent="Kaçıncı derse kadar?";
+  else if(t==="day_after") prefValueLabel.textContent="Kaçıncı dersten sonra ders yazma?";
+}
+function prefDescription(p){
+  const names={
+    day_off:"günü tamamen boş",
+    no_first:"İlk derse yazma",
+    no_last_n:"Son saatlere yazma",
+    morning:"Dersler sabah olsun",
+    afternoon:"Dersler öğleden sonra olsun",
+    compact:"Derslerimi arka arkaya ver",
+    no_compact:"Derslerimi arka arkaya verme",
+    max_daily:"Günlük maksimum ders",
+    day_until:"Belirli gün sadece erken saatler",
+    day_after:"Belirli gün geç saate yazma"
+  };
+  if(p.type==="day_off") return `${p.day} günü tamamen boş`;
+  if(p.type==="no_last_n") return `Son ${p.value} saate ders yazma`;
+  if(p.type==="max_daily") return `Günde en fazla ${p.value} ders`;
+  if(p.type==="day_until") return `${p.day} günü yalnızca ${p.value}. derse kadar`;
+  if(p.type==="day_after") return `${p.day} günü ${p.value}. dersten sonra ders yazma`;
+  return names[p.type]||p.type;
+}
+function addPreference(){
+  if(!prefTeacher.value) return alert("Öğretmen seç.");
+  const type=prefType.value;
+  const day=["day_off","day_until","day_after"].includes(type)?prefDay.value:null;
+  const value=["no_last_n","max_daily","day_until","day_after"].includes(type)?(+prefValue.value||1):null;
+  db.preferences.push({id:uid(),teacherId:prefTeacher.value,type,day,value,level:prefLevel.value});
+  save();
+}
+function teacherPrefs(tid,level=null){
+  return db.preferences.filter(p=>p.teacherId===tid && (!level || p.level===level));
+}
+function violatesHardPreference(teacher,day,hour,teacherDailyCount){
+  const prefs=teacherPrefs(teacher.id,"hard");
+  const dayHours=+db.settings.dayHours?.[day]||0;
+  for(const p of prefs){
+    if(p.type==="day_off" && p.day===day) return true;
+    if(p.type==="no_first" && hour===1) return true;
+    if(p.type==="no_last_n" && hour>Math.max(0,dayHours-(+p.value||1))) return true;
+    if(p.type==="max_daily" && teacherDailyCount>= (+p.value||1)) return true;
+    if(p.type==="no_compact"){
+      // Hard adjacency check is handled separately using the busy-day map.
+    }
+    if(p.type==="day_until" && p.day===day && hour>(+p.value||1)) return true;
+    if(p.type==="day_after" && p.day===day && hour>(+p.value||1)) return true;
+  }
+  return false;
+}
+function softScore(teacher,day,hour,teacherBusyDay){
+  let score=0;
+  const prefs=teacherPrefs(teacher.id,"soft");
+  const dayHours=+db.settings.dayHours?.[day]||0;
+  for(const p of prefs){
+    if(p.type==="day_off" && p.day===day) score-=100;
+    if(p.type==="no_first" && hour===1) score-=20;
+    if(p.type==="no_last_n" && hour>Math.max(0,dayHours-(+p.value||1))) score-=20;
+    if(p.type==="morning") score += Math.max(0, dayHours-hour+1);
+    if(p.type==="afternoon") score += hour;
+    if(p.type==="compact"){
+      if(teacherBusyDay[hour-1]||teacherBusyDay[hour+1]) score+=15;
+      else score-=2;
+    }
+    if(p.type==="no_compact"){
+      if(teacherBusyDay[hour-1]||teacherBusyDay[hour+1]) score-=25;
+      else score+=8;
+    }
+    if(p.type==="day_until" && p.day===day && hour>(+p.value||1)) score-=20;
+    if(p.type==="day_after" && p.day===day && hour>(+p.value||1)) score-=20;
+  }
+  return score;
+}
+
+
+let editState=null;
+function closeEditModal(){editModal.classList.remove("show");editState=null}
+function openEditModal(title,body,state){
+  editModalTitle.textContent=title;
+  editModalBody.innerHTML=body;
+  editState=state;
+  editModal.classList.add("show");
+}
+function editTeacher(id){
+  const x=db.teachers.find(v=>v.id===id); if(!x)return;
+  openEditModal("Öğretmeni Düzelt",`
+    <div class="field"><label>Ad Soyad</label><input id="edName" value="${esc(x.name)}"></div>
+    <div class="field" style="margin-top:10px"><label>Branş</label><input id="edBranch" value="${esc(x.branch)}"></div>
+    <div class="field" style="margin-top:10px"><label>Günlük Maksimum Ders Sayısı</label><input id="edMax" type="number" min="1" max="12" value="${x.max}"></div>
+  `,{type:"teacher",id});
+}
+function editClass(id){
+  const x=db.classes.find(v=>v.id===id); if(!x)return;
+  openEditModal("Sınıfı Düzelt",`
+    <div class="field"><label>Sınıf / Şube</label><input id="edName" value="${esc(x.name)}"></div>
+    <div class="field" style="margin-top:10px"><label>Sınıf Seviyesi</label><input id="edLevel" value="${esc(x.level)}"></div>
+    <div class="field" style="margin-top:10px"><label>Günlük Ders Sayısı</label><input id="edDaily" type="number" min="1" max="12" value="${x.daily}"></div>
+  `,{type:"class",id});
+}
+function editCourse(id){
+  const x=db.courses.find(v=>v.id===id); if(!x)return;
+  openEditModal("Dersi Düzelt",`
+    <div class="field"><label>Ders Adı</label><input id="edName" value="${esc(x.name)}"></div>
+    <div class="field" style="margin-top:10px"><label>Kısaltma</label><input id="edCode" value="${esc(x.code)}"></div>
+    <div class="field" style="margin-top:10px"><label>Varsayılan Haftalık Ders Saati</label><input id="edWeeklyHours" type="number" min="1" max="40" value="${x.weeklyHours||1}"></div>
+    <div class="field" style="margin-top:10px"><label>Blok Ders</label><select id="edBlock"><option value="1" ${x.block===1?"selected":""}>Tek saat</option><option value="2" ${x.block===2?"selected":""}>2 saat blok</option></select></div>
+  `,{type:"course",id});
+}
+function editAssignment(id){
+  const x=db.assignments.find(v=>v.id===id); if(!x)return;
+  openEditModal("Haftalık Ders Sayısını Düzelt",`
+    <div class="field"><label>Öğretmen</label><input value="${esc(nameOf(db.teachers,x.teacherId))}" disabled></div>
+    <div class="field" style="margin-top:10px"><label>Sınıf</label><input value="${esc(nameOf(db.classes,x.classId))}" disabled></div>
+    <div class="field" style="margin-top:10px"><label>Ders</label><input value="${esc(nameOf(db.courses,x.courseId))}" disabled></div>
+    <div class="field" style="margin-top:10px"><label>Haftalık Ders Sayısı</label><input id="edHours" type="number" min="1" max="40" value="${x.hours}"></div>
+  `,{type:"assignment",id});
+}
+function saveEditModal(){
+  if(!editState)return;
+  if(editState.type==="teacher"){
+    const x=db.teachers.find(v=>v.id===editState.id);
+    const n=edName.value.trim(); if(!n)return alert("Öğretmen adı boş olamaz.");
+    x.name=n;x.branch=edBranch.value.trim();x.max=Math.max(1,+edMax.value||1);
+  }else if(editState.type==="class"){
+    const x=db.classes.find(v=>v.id===editState.id);
+    const n=edName.value.trim(); if(!n)return alert("Sınıf adı boş olamaz.");
+    x.name=n;x.level=edLevel.value.trim();x.daily=Math.max(1,+edDaily.value||1);
+  }else if(editState.type==="course"){
+    const x=db.courses.find(v=>v.id===editState.id);
+    const n=edName.value.trim(); if(!n)return alert("Ders adı boş olamaz.");
+    x.name=n;x.code=edCode.value.trim();x.weeklyHours=Math.max(1,+edWeeklyHours.value||1);x.block=+edBlock.value||1;
+  }else if(editState.type==="assignment"){
+    const x=db.assignments.find(v=>v.id===editState.id);
+    x.hours=Math.max(1,+edHours.value||1);
+  }
+  closeEditModal();save();
+}
+
+function renderAll(){
+  stTeachers.textContent=db.teachers.length; stClasses.textContent=db.classes.length;
+  stCourses.textContent=db.courses.length; stAssignments.textContent=db.assignments.length;
+
+  teachersTable.innerHTML=db.teachers.length?`<div class="table-wrap"><table><thead><tr><th>Ad Soyad</th><th>Branş</th><th>Günlük Maks.</th><th></th></tr></thead><tbody>${
+    db.teachers.map(x=>`<tr><td>${esc(x.name)}</td><td>${esc(x.branch)}</td><td>${x.max}</td><td><div class="actions"><button class="btn btn-secondary" onclick="editTeacher('${x.id}')">Düzelt</button><button class="btn btn-danger" onclick="del('teachers','${x.id}')">Sil</button></div></td></tr>`).join("")
+  }</tbody></table></div>`:'<div class="empty">Henüz öğretmen yok.</div>';
+
+  classesTable.innerHTML=db.classes.length?`<div class="table-wrap"><table><thead><tr><th>Sınıf</th><th>Seviye</th><th>Günlük Ders</th><th></th></tr></thead><tbody>${
+    db.classes.map(x=>`<tr><td>${esc(x.name)}</td><td>${esc(x.level)}</td><td>${x.daily}</td><td><div class="actions"><button class="btn btn-secondary" onclick="editClass('${x.id}')">Düzelt</button><button class="btn btn-danger" onclick="del('classes','${x.id}')">Sil</button></div></td></tr>`).join("")
+  }</tbody></table></div>`:'<div class="empty">Henüz sınıf yok.</div>';
+
+  coursesTable.innerHTML=db.courses.length?`<div class="table-wrap"><table><thead><tr><th>Ders</th><th>Kısaltma</th><th>Haftalık Saat</th><th>Blok</th><th></th></tr></thead><tbody>${
+    db.courses.map(x=>`<tr><td>${esc(x.name)}</td><td>${esc(x.code)}</td><td>${x.weeklyHours||1}</td><td>${x.block===2?"2 Saat":"Tek Saat"}</td><td><div class="actions"><button class="btn btn-secondary" onclick="editCourse('${x.id}')">Düzelt</button><button class="btn btn-danger" onclick="del('courses','${x.id}')">Sil</button></div></td></tr>`).join("")
+  }</tbody></table></div>`:'<div class="empty">Henüz ders yok.</div>';
+
+  asTeacher.innerHTML=opts(db.teachers); asClass.innerHTML=opts(db.classes); asCourse.innerHTML=opts(db.courses);
+  asCourse.onchange=()=>{
+    const c=db.courses.find(x=>x.id===asCourse.value);
+    if(c) asHours.value=c.weeklyHours||1;
+  };
+  avTeacher.innerHTML=opts(db.teachers);
+  prefTeacher.innerHTML=opts(db.teachers);
+  updatePreferenceFields();
+
+  assignmentsTable.innerHTML=db.assignments.length?`<div class="table-wrap"><table><thead><tr><th>Öğretmen</th><th>Sınıf</th><th>Ders</th><th>Haftalık Saat</th><th></th></tr></thead><tbody>${
+    db.assignments.map(x=>`<tr><td>${esc(nameOf(db.teachers,x.teacherId))}</td><td>${esc(nameOf(db.classes,x.classId))}</td><td>${esc(nameOf(db.courses,x.courseId))}</td><td>${x.hours}</td><td><div class="actions"><button class="btn btn-secondary" onclick="editAssignment('${x.id}')">Düzelt</button><button class="btn btn-danger" onclick="del('assignments','${x.id}')">Sil</button></div></td></tr>`).join("")
+  }</tbody></table></div>`:'<div class="empty">Henüz ders dağılımı yok.</div>';
+
+  availabilityTable.innerHTML=db.unavailable.length?`<div class="table-wrap"><table><thead><tr><th>Öğretmen</th><th>Uygun Değil</th><th></th></tr></thead><tbody>${
+    db.unavailable.map(x=>`<tr><td>${esc(nameOf(db.teachers,x.teacherId))}</td><td>${x.day}</td><td><button class="btn btn-danger" onclick="del('unavailable','${x.id}')">Sil</button></td></tr>`).join("")
+  }</tbody></table></div>`:'<div class="empty">Kısıt tanımlanmadı.</div>';
+
+  preferencesTable.innerHTML=db.preferences.length?`<div class="table-wrap"><table><thead><tr><th>Öğretmen</th><th>İstek</th><th>Seviye</th><th></th></tr></thead><tbody>${
+    db.preferences.map(x=>`<tr><td>${esc(nameOf(db.teachers,x.teacherId))}</td><td>${esc(prefDescription(x))}</td><td>${x.level==="hard"?"Kesin Kural":"Tercih"}</td><td><button class="btn btn-danger" onclick="del('preferences','${x.id}')">Sil</button></td></tr>`).join("")
+  }</tbody></table></div>`:'<div class="empty">Henüz öğretmen isteği eklenmedi.</div>';
+
+  schoolName.value=db.settings.schoolName||"";
+  dayHoursPazartesi.value=db.settings.dayHours?.Pazartesi ?? 8;
+  dayHoursSalı.value=db.settings.dayHours?.Salı ?? 8;
+  dayHoursÇarşamba.value=db.settings.dayHours?.Çarşamba ?? 8;
+  dayHoursPerşembe.value=db.settings.dayHours?.Perşembe ?? 8;
+  dayHoursCuma.value=db.settings.dayHours?.Cuma ?? 8;
+}
+function nameOf(arr,id){return (arr.find(x=>x.id===id)||{}).name||"-"}
+function saveSettings(){
+  db.settings.schoolName=schoolName.value.trim();
+  db.settings.dayHours={
+    Pazartesi:Math.max(0,+dayHoursPazartesi.value||0),
+    Salı:Math.max(0,+dayHoursSalı.value||0),
+    Çarşamba:Math.max(0,+dayHoursÇarşamba.value||0),
+    Perşembe:Math.max(0,+dayHoursPerşembe.value||0),
+    Cuma:Math.max(0,+dayHoursCuma.value||0)
+  };
+  save();alert("Ayarlar kaydedildi.");
+}
+function clearSchedule(){db.schedule=[];save();generatorMessage.innerHTML='<div class="notice">Program temizlendi.</div>'}
+
+function generateSchedule(){
+  if(!db.teachers.length||!db.classes.length||!db.courses.length||!db.assignments.length){
+    generatorMessage.innerHTML='<div class="notice">Önce öğretmen, sınıf, ders ve ders dağılımı eklemelisin.</div>';return;
+  }
+  const schedule=[];
+  const teacherBusy={}; const classBusy={}; const teacherDaily={};
+  db.teachers.forEach(t=>{teacherBusy[t.id]={};teacherDaily[t.id]={};days.forEach(d=>{teacherBusy[t.id][d]={};teacherDaily[t.id][d]=0})});
+  db.classes.forEach(c=>{classBusy[c.id]={};days.forEach(d=>classBusy[c.id][d]={})});
+
+  let failed=[];
+  const tasks=[];
+  db.assignments.forEach(a=>{
+    for(let i=0;i<a.hours;i++)tasks.push({...a,instance:i});
+  });
+  tasks.sort(()=>Math.random()-.5);
+
+  for(const task of tasks){
+    const teacher=db.teachers.find(x=>x.id===task.teacherId);
+    const cls=db.classes.find(x=>x.id===task.classId);
+    const course=db.courses.find(x=>x.id===task.courseId);
+    if(!teacher||!cls||!course)continue;
+    let placed=false;
+    let candidates=[];
+
+    for(const day of days){
+      if(db.unavailable.some(x=>x.teacherId===teacher.id&&x.day===day))continue;
+      if(teacherDaily[teacher.id][day]>=teacher.max)continue;
+
+      const schoolHours=+db.settings.dayHours?.[day]||0;
+      const maxHours=Math.min(cls.daily||schoolHours,schoolHours);
+      if(maxHours<=0) continue;
+
+      for(let h=1;h<=maxHours;h++){
+        if(teacherBusy[teacher.id][day][h]||classBusy[cls.id][day][h])continue;
+        if(violatesHardPreference(teacher,day,h,teacherDaily[teacher.id][day]))continue;
+        const hardNoCompact=teacherPrefs(teacher.id,"hard").some(p=>p.type==="no_compact");
+        if(hardNoCompact && (teacherBusy[teacher.id][day][h-1]||teacherBusy[teacher.id][day][h+1])) continue;
+
+        let score=softScore(teacher,day,h,teacherBusy[teacher.id][day]);
+        // Genel dengeleme: aynı öğretmenin gün içi yükünü ve aynı dersin aynı güne yığılmasını azalt.
+        score -= teacherDaily[teacher.id][day]*2;
+        const sameCourseSameDay=schedule.filter(s=>s.classId===cls.id&&s.courseId===course.id&&s.day===day).length;
+        score -= sameCourseSameDay*3;
+        score += Math.random(); // eşit puanlarda çeşitlilik
+        candidates.push({day,h,score});
+      }
+    }
+
+    candidates.sort((a,b)=>b.score-a.score);
+    if(candidates.length){
+      const best=candidates[0];
+      teacherBusy[teacher.id][best.day][best.h]=true;
+      classBusy[cls.id][best.day][best.h]=true;
+      teacherDaily[teacher.id][best.day]++;
+      schedule.push({id:uid(),day:best.day,hour:best.h,teacherId:teacher.id,classId:cls.id,courseId:course.id});
+      placed=true;
+    }
+    if(!placed)failed.push(task);
+  }
+  db.schedule=schedule;
+  save();
+  const hardCount=db.preferences.filter(p=>p.level==="hard").length;
+  const softCount=db.preferences.filter(p=>p.level==="soft").length;
+  if(failed.length){
+    generatorMessage.innerHTML=`<div class="notice">${schedule.length} ders yerleştirildi. ${failed.length} ders yerleştirilemedi. ${hardCount} kesin kural ve ${softCount} tercih dikkate alındı.</div>`;
+  }else{
+    generatorMessage.innerHTML=`<div style="padding:12px 14px;background:#ecfdf3;border:1px solid #abefc6;border-radius:11px;color:#067647;font-size:13px">Program başarıyla oluşturuldu. Toplam ${schedule.length} ders yerleştirildi. ${hardCount} kesin kural ve ${softCount} öğretmen tercihi dikkate alındı.</div>`;
+  }
+
+  // Program oluşunca Programlar ekranına geç ve ilk sınıfı göster.
+  document.querySelectorAll(".nav button").forEach(x=>x.classList.remove("active"));
+  const pbtn=document.querySelector('.nav button[data-section="programs"]');
+  if(pbtn) pbtn.classList.add("active");
+  document.querySelectorAll(".section").forEach(x=>x.classList.remove("active"));
+  document.getElementById("programs").classList.add("active");
+  document.getElementById("pageTitle").textContent="Programlar";
+  renderAll();
+  programView="classes";
+  setProgramView("classes");
+}
+let programView="classes";
+
+function setProgramView(view){
+  programView=view;
+  if(typeof classProgramsTab!=="undefined"){
+    classProgramsTab.className="btn "+(view==="classes"?"btn-primary":"btn-secondary");
+    teacherProgramsTab.className="btn "+(view==="teachers"?"btn-primary":"btn-secondary");
+  }
+  renderPrograms();
+}
+
+function scheduleTableForClass(cls){
+  const configuredMax=Math.max(...days.map(d=>+db.settings.dayHours?.[d]||0),0);
+  const rowCount=Math.min(cls.daily||configuredMax,configuredMax||cls.daily||0);
+  let html=`<div style="margin-bottom:26px"><h3 style="margin:0 0 10px">${esc(cls.name)}</h3><div class="table-wrap"><table class="program-table"><thead><tr><th>Ders Saati</th>${days.map(d=>`<th>${d}</th>`).join("")}</tr></thead><tbody>`;
+  for(let h=1;h<=rowCount;h++){
+    html+=`<tr><th>${h}. Ders</th>`;
+    for(const d of days){
+      const allowed=+db.settings.dayHours?.[d]||0;
+      if(h>allowed){html+='<td style="background:#f8fafc;color:#94a3b8">—</td>';continue}
+      const item=db.schedule.find(x=>x.classId===cls.id&&x.day===d&&x.hour===h);
+      html+='<td>'+(item?`<span class="lesson">${esc(nameOf(db.courses,item.courseId))}<small>${esc(nameOf(db.teachers,item.teacherId))}</small></span>`:"")+'</td>';
+    }
+    html+='</tr>';
+  }
+  return html+'</tbody></table></div></div>';
+}
+
+function scheduleTableForTeacher(teacher){
+  const configuredMax=Math.max(...days.map(d=>+db.settings.dayHours?.[d]||0),0);
+  let html=`<div style="margin-bottom:26px"><h3 style="margin:0 0 10px">${esc(teacher.name)} <small style="font-weight:500;color:var(--muted)">— ${esc(teacher.branch)}</small></h3><div class="table-wrap"><table class="program-table"><thead><tr><th>Ders Saati</th>${days.map(d=>`<th>${d}</th>`).join("")}</tr></thead><tbody>`;
+  for(let h=1;h<=configuredMax;h++){
+    html+=`<tr><th>${h}. Ders</th>`;
+    for(const d of days){
+      const allowed=+db.settings.dayHours?.[d]||0;
+      if(h>allowed){html+='<td style="background:#f8fafc;color:#94a3b8">—</td>';continue}
+      const item=db.schedule.find(x=>x.teacherId===teacher.id&&x.day===d&&x.hour===h);
+      html+='<td>'+(item?`<span class="lesson">${esc(nameOf(db.courses,item.courseId))}<small>${esc(nameOf(db.classes,item.classId))}</small></span>`:"")+'</td>';
+    }
+    html+='</tr>';
+  }
+  return html+'</tbody></table></div></div>';
+}
+
+function renderPrograms(){
+  if(!db.schedule.length){
+    programArea.innerHTML='<div class="empty">Henüz program oluşturulmadı. Otomatik Program bölümünden program oluştur.</div>';
+    return;
+  }
+  if(programView==="classes"){
+    const sorted=[...db.classes].sort((a,b)=>a.name.localeCompare(b.name,"tr",{numeric:true,sensitivity:"base"}));
+    programArea.innerHTML=sorted.map(scheduleTableForClass).join("");
+  }else{
+    const sorted=[...db.teachers].sort((a,b)=>a.name.localeCompare(b.name,"tr",{sensitivity:"base"}));
+    programArea.innerHTML=sorted.map(scheduleTableForTeacher).join("");
+  }
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+function saveProgramsAsPDF(){
+  if(!db.schedule.length){
+    alert("Önce otomatik program oluşturmalısın.");
+    return;
+  }
+
+  document.body.classList.add("pdf-mode");
+  setTimeout(()=>{
+    window.print();
+    setTimeout(()=>document.body.classList.remove("pdf-mode"),500);
+  },100);
+}
+
+window.addEventListener("afterprint",()=>{
+  document.body.classList.remove("pdf-mode");
+});
+
+renderAll();
+</script>
+
+<div id="editModal" class="modal-backdrop" onclick="if(event.target===this)closeEditModal()">
+  <div class="modal">
+    <h3 id="editModalTitle">Düzelt</h3>
+    <div id="editModalBody"></div>
+    <div class="modal-actions">
+      <button class="btn btn-secondary" onclick="closeEditModal()">Vazgeç</button>
+      <button class="btn btn-primary" onclick="saveEditModal()">Kaydet</button>
+    </div>
+  </div>
+</div>
+
+</body>
+</html>
