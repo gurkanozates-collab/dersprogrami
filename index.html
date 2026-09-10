@@ -268,7 +268,7 @@ th{color:#475467;background:#f9fafb;font-size:12px}
       <div class="section-title"><h2>Ders Dağılımı</h2></div>
       <div class="card">
         <div class="form-grid">
-          <div class="field"><label>Öğretmen</label><select id="asTeacher"></select></div>
+          <div class="field"><label>Öğretmen</label><select id="asTeacher" multiple size="5"></select><small style="display:block;margin-top:5px;color:var(--muted)">Aynı derse birlikte girecek öğretmenleri Ctrl ile çoklu seç.</small></div>
           <div class="field"><label>Sınıf</label><select id="asClass"></select></div>
           <div class="field"><label>Ders</label><select id="asCourse"></select></div>
           <div class="field"><label>Haftalık Saat</label><input id="asHours" type="number" min="1" max="40" value="4"></div>
@@ -455,6 +455,9 @@ let db=JSON.parse(localStorage.getItem(key)||'null')||{
 };
 if(!db.settings) db.settings={};
 if(!db.preferences) db.preferences=[];
+db.assignments.forEach(a=>{
+  if(!Array.isArray(a.teacherIds)) a.teacherIds=a.teacherId?[a.teacherId]:[];
+});
 db.courses.forEach(c=>{if(!c.weeklyHours)c.weeklyHours=2});
 if(!db.settings.dayHours){
   const oldDefault=+db.settings.defaultDaily||8;
@@ -503,9 +506,11 @@ function addCourse(){
   courseName.value="";courseCode.value="";courseWeeklyHours.value=2;save();
 }
 function addAssignment(){
-  if(!asTeacher.value||!asClass.value||!asCourse.value)return alert("Öğretmen, sınıf ve ders seç.");
-  const hours=+asHours.value||1;
-  db.assignments.push({id:uid(),teacherId:asTeacher.value,classId:asClass.value,courseId:asCourse.value,hours});
+  const teacherIds=[...asTeacher.selectedOptions].map(o=>o.value).filter(Boolean);
+  if(!teacherIds.length)return alert("En az bir öğretmen seç.");
+  if(!asClass.value)return alert("Sınıf seç.");
+  if(!asCourse.value)return alert("Ders seç.");
+  db.assignments.push({id:uid(),teacherIds,teacherId:teacherIds[0],classId:asClass.value,courseId:asCourse.value,hours:Math.max(1,+asHours.value||1)});
   save();
 }
 function addUnavailable(){
@@ -568,6 +573,14 @@ function addPreference(){
   db.preferences.push({id:uid(),teacherId:prefTeacher.value,type,day,value,level:prefLevel.value});
   save();
 }
+
+function assignmentTeacherIds(a){
+  return Array.isArray(a.teacherIds)?a.teacherIds:(a.teacherId?[a.teacherId]:[]);
+}
+function assignmentTeachersText(a){
+  return assignmentTeacherIds(a).map(id=>nameOf(db.teachers,id)).join(" + ");
+}
+
 function teacherPrefs(tid,level=null){
   return db.preferences.filter(p=>p.teacherId===tid && (!level || p.level===level));
 }
@@ -745,15 +758,15 @@ function generateSchedule(){
   let failed=[];
   const tasks=[];
   db.assignments.forEach(a=>{
-    for(let i=0;i<a.hours;i++)tasks.push({...a,instance:i});
+    for(let i=0;i<a.hours;i++)tasks.push({...a,teacherIds:assignmentTeacherIds(a),instance:i});
   });
   tasks.sort(()=>Math.random()-.5);
 
   for(const task of tasks){
-    const teacher=db.teachers.find(x=>x.id===task.teacherId);
+    const teachers=assignmentTeacherIds(task).map(id=>db.teachers.find(x=>x.id===id)).filter(Boolean);
     const cls=db.classes.find(x=>x.id===task.classId);
     const course=db.courses.find(x=>x.id===task.courseId);
-    if(!teacher||!cls||!course)continue;
+    if(!teachers.length||!cls||!course)continue;
     let placed=false;
     let candidates=[];
 
@@ -768,12 +781,12 @@ function generateSchedule(){
       for(let h=1;h<=maxHours;h++){
         if(teacherBusy[teacher.id][day][h]||classBusy[cls.id][day][h])continue;
         if(violatesHardPreference(teacher,day,h,teacherDaily[teacher.id][day]))continue;
-        const hardNoCompact=teacherPrefs(teacher.id,"hard").some(p=>p.type==="no_compact");
-        if(hardNoCompact && (teacherBusy[teacher.id][day][h-1]||teacherBusy[teacher.id][day][h+1])) continue;
+        const hardNoCompact=teachers.some(t=>teacherPrefs(t.id,"hard").some(p=>p.type==="no_compact"));
+        if(hardNoCompact && teachers.some(t=>teacherBusy[t.id][day][h-1]||teacherBusy[t.id][day][h+1])) continue;
 
         let score=softScore(teacher,day,h,teacherBusy[teacher.id][day]);
         // Genel dengeleme: aynı öğretmenin gün içi yükünü ve aynı dersin aynı güne yığılmasını azalt.
-        score -= teacherDaily[teacher.id][day]*2;
+        score -= teachers.reduce((sum,t)=>sum+teacherDaily[t.id][day]*2,0);
         const sameCourseSameDay=schedule.filter(s=>s.classId===cls.id&&s.courseId===course.id&&s.day===day).length;
         score -= sameCourseSameDay*3;
         score += Math.random(); // eşit puanlarda çeşitlilik
@@ -786,8 +799,8 @@ function generateSchedule(){
       const best=candidates[0];
       teacherBusy[teacher.id][best.day][best.h]=true;
       classBusy[cls.id][best.day][best.h]=true;
-      teacherDaily[teacher.id][best.day]++;
-      schedule.push({id:uid(),day:best.day,hour:best.h,teacherId:teacher.id,classId:cls.id,courseId:course.id});
+      teachers.forEach(t=>teacherDaily[t.id][best.day]++);
+      schedule.push({id:uid(),day:best.day,hour:best.h,teacherIds:teachers.map(t=>t.id),teacherId:teachers[0]?.id||null,classId:cls.id,courseId:course.id});
       placed=true;
     }
     if(!placed)failed.push(task);
@@ -834,7 +847,7 @@ function scheduleTableForClass(cls){
       const allowed=+db.settings.dayHours?.[d]||0;
       if(h>allowed){html+='<td style="background:#f8fafc;color:#94a3b8">—</td>';continue}
       const item=db.schedule.find(x=>x.classId===cls.id&&x.day===d&&x.hour===h);
-      html+='<td>'+(item?`<span class="lesson">${esc(nameOf(db.courses,item.courseId))}<small>${esc(nameOf(db.teachers,item.teacherId))}</small></span>`:"")+'</td>';
+      html+='<td>'+(item?`<span class="lesson">${esc(nameOf(db.courses,item.courseId))}<small>${esc(assignmentTeacherIds(item).map(id=>nameOf(db.teachers,id)).join(" + "))}</small></span>`:"")+'</td>';
     }
     html+='</tr>';
   }
@@ -849,7 +862,7 @@ function scheduleTableForTeacher(teacher){
     for(const d of days){
       const allowed=+db.settings.dayHours?.[d]||0;
       if(h>allowed){html+='<td style="background:#f8fafc;color:#94a3b8">—</td>';continue}
-      const item=db.schedule.find(x=>x.teacherId===teacher.id&&x.day===d&&x.hour===h);
+      const item=db.schedule.find(x=>assignmentTeacherIds(x).includes(teacher.id)&&x.day===d&&x.hour===h);
       html+='<td>'+(item?`<span class="lesson">${esc(nameOf(db.courses,item.courseId))}<small>${esc(nameOf(db.classes,item.classId))}</small></span>`:"")+'</td>';
     }
     html+='</tr>';
